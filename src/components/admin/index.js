@@ -1,0 +1,7 @@
+export { default as MainDashboard } from './MainDashboard'
+export { default as MainDocument } from './MainDocument'
+export { default as MainUser } from './MainUser'
+export { default as SubDashboard } from './SubDashboard'
+export { default as SubDocument } from './SubDocument'
+export { default as SubUser } from './SubUser'
+export { default as FileUpload } from './FileUpload'
