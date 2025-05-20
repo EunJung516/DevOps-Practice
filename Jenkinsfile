@@ -1,5 +1,11 @@
 pipeline {
-    agent any
+    agent {
+        // React 빌드용으로 Node가 있는 Docker 이미지 쓰는 것도 추천 (선택사항)
+        docker {
+            image 'node:18'
+            args '-u root:root' // 권한 문제 있으면
+        }
+    }
 
     environment {
         GIT_URL = 'https://github.com/EunJung516/DevOps-Practice.git'
@@ -24,12 +30,15 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
+                // 만약 프론트엔드 코드가 루트가 아니라면 dir() 로 경로 지정
+                // 예) dir('frontend') { sh 'npm install' }
                 sh 'npm install'
             }
         }
 
         stage('Build React App') {
             steps {
+                // 마찬가지로 경로 맞게 수정 필요
                 sh 'npm run build'
             }
         }
@@ -52,7 +61,6 @@ pipeline {
                         appImage.push()
                     }
                 
-                    // 최종 이미지 태그를 env에 등록 (나중에 deploy.yaml 수정에 사용)
                     env.FINAL_IMAGE_TAG = FINAL_IMAGE_TAG
                 }
             }
