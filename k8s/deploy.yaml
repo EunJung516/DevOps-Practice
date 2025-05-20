@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sk055-ingress-test
+  namespace: skala-practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sk055-ingress-test
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '8081'
+        prometheus.io/path: '/actuator/prometheus'
+        update: 8383023590e661e29c12c399a6eb24ab
+      labels:
+        app: sk055-ingress-test
+    spec:
+      containers:
+        - name: webserver
+          image: amdp-registry.skala-ai.com/skala25a/sk055-webserver:2.0.0
+          imagePullPolicy: Always
+          env:
+            - name: LOGGING_LEVEL
+              value: DEBUG
+            - name: USER_NAME
+              value: sk055
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            failureThreshold: 2
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            failureThreshold: 2
