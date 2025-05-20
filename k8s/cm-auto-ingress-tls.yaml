@@ -13,21 +13,13 @@ spec:
     - host: sk055-tls.skala25a.project.skala-ai.com
       http:
         paths:
-          - path: /api(/|$)(.*)
+          - path: /
             pathType: Prefix
             backend:
               service:
                 name: sk055-my-app
                 port:
                   number: 8080
-
-          - path: /(.*)
-            pathType: Prefix
-            backend:
-              service:
-                name: sk055-my-app
-                port:
-                  number: 80
   tls:
     - hosts:
         - sk055-tls.skala25a.project.skala-ai.com
