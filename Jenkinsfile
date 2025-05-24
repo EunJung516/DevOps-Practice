@@ -1,5 +1,10 @@
 pipeline {
-    agent any  // 도커 컨테이너 대신 Jenkins 에이전트 노드에서 실행
+    agent {
+        docker {
+            image 'node:18'  // Node.js 18 버전 공식 이미지 사용
+            args '-u root:root'  // 루트 권한으로 실행 (필요 시)
+        }
+    }
 
     environment {
         GIT_URL = 'https://github.com/EunJung516/DevOps-Practice.git'
