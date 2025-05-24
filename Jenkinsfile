@@ -1,55 +1,64 @@
 pipeline {
-    agent {
-        // React 빌드용으로 Node가 있는 Docker 이미지 쓰는 것도 추천 (선택사항)
-        docker {
-            image 'node:18'
-            args '-u root:root' // 권한 문제 있으면
-        }
-    }
+    agent none  // 스테이지마다 agent 지정
 
     environment {
         GIT_URL = 'https://github.com/EunJung516/DevOps-Practice.git'
-        GIT_BRANCH = 'main' // 또는 master
-        GIT_ID = 'skala-github-id' // GitHub PAT credential ID
-        GIT_USER_NAME = 'EunJung516' // GitHub 사용자 이름
+        GIT_BRANCH = 'main'
+        GIT_ID = 'skala-github-id'
+        GIT_USER_NAME = 'EunJung516'
         GIT_USER_EMAIL = '0516dmswjd@gmail.com'
         IMAGE_REGISTRY = 'amdp-registry.skala-ai.com/skala25a'
         IMAGE_NAME = 'sk055-my-app'
         IMAGE_TAG = '1.0.0'
-        DOCKER_CREDENTIAL_ID = 'skala-image-registry-id'  // Harbor 인증 정보 ID
+        DOCKER_CREDENTIAL_ID = 'skala-image-registry-id'
     }
 
     stages {
         stage('Clone Repository') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-u root:root'
+                }
+            }
             steps {
-                git branch: "${GIT_BRANCH}",
-                    url: "${GIT_URL}",
-                    credentialsId: "${GIT_ID}"
+                git branch: "${GIT_BRANCH}", url: "${GIT_URL}", credentialsId: "${GIT_ID}"
             }
         }
 
         stage('Install Dependencies') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-u root:root'
+                }
+            }
             steps {
                 sh 'npm install'
             }
         }
 
         stage('Build React App') {
+            agent {
+                docker {
+                    image 'node:18'
+                    args '-u root:root'
+                }
+            }
             steps {
                 sh 'npm run build'
             }
         }
 
         stage('Docker Build & Push') {
+            agent any  // Jenkins 호스트에서 실행
             steps {
                 script {
-                    // 해시코드 12자리 생성
                     def hashcode = sh(
                         script: "date +%s%N | sha256sum | cut -c1-12",
                         returnStdout: true
                     ).trim()
 
-                    // Build Number + Hash Code 조합 (IMAGE_TAG는 유지)
                     def FINAL_IMAGE_TAG = "${IMAGE_TAG}-${BUILD_NUMBER}-${hashcode}"
                     echo "Final Image Tag: ${FINAL_IMAGE_TAG}"
 
@@ -57,13 +66,14 @@ pipeline {
                         def appImage = docker.build("${IMAGE_REGISTRY}/${IMAGE_NAME}:${FINAL_IMAGE_TAG}", "--platform linux/amd64 .")
                         appImage.push()
                     }
-                
+
                     env.FINAL_IMAGE_TAG = FINAL_IMAGE_TAG
                 }
             }
         }
 
         stage('Update deploy.yaml and Git Push') {
+            agent any  // Jenkins 호스트에서 실행
             steps {
                 script {
                     def newImageLine = "          image: ${env.IMAGE_REGISTRY}/${env.IMAGE_NAME}:${env.FINAL_IMAGE_TAG}"
