@@ -20,8 +20,6 @@ pipeline {
 
     stages {
         stage('Checkout') {
-            // agent 없이 Jenkins master 노드에서 먼저 체크아웃
-            agent { label 'master' }
             steps {
                 checkout([
                     $class: 'GitSCM',
