@@ -30,21 +30,13 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                script {
-                    docker.image('node:20-alpine').inside('-u root') {
-                        sh 'npm install --unsafe-perm'
-                    }
-                }
+                sh 'npm install'
             }
         }
 
         stage('Build React App') {
             steps {
-                script {
-                    docker.image('node:20-alpine').inside('-u root') {
-                        sh 'npm run build'
-                    }
-                }
+                sh 'npm run build'
             }
         }
 
