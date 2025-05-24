@@ -1,5 +1,10 @@
 pipeline {
-    agent none  // 스테이지마다 agent 지정
+    agent {
+        docker {
+            image 'node:18'
+            args '-u root:root'
+        }
+    }
 
     environment {
         GIT_URL = 'https://github.com/EunJung516/DevOps-Practice.git'
@@ -14,44 +19,34 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repository') {
-            agent {
-                docker {
-                    image 'node:18'
-                    args '-u root:root'
-                }
-            }
+        stage('Checkout') {
+            // agent 없이 Jenkins master 노드에서 먼저 체크아웃
+            agent { label 'master' }
             steps {
-                git branch: "${GIT_BRANCH}", url: "${GIT_URL}", credentialsId: "${GIT_ID}"
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: GIT_BRANCH]],
+                    userRemoteConfigs: [[
+                        url: GIT_URL,
+                        credentialsId: GIT_ID
+                    ]]
+                ])
             }
         }
 
         stage('Install Dependencies') {
-            agent {
-                docker {
-                    image 'node:18'
-                    args '-u root:root'
-                }
-            }
             steps {
                 sh 'npm install'
             }
         }
 
         stage('Build React App') {
-            agent {
-                docker {
-                    image 'node:18'
-                    args '-u root:root'
-                }
-            }
             steps {
                 sh 'npm run build'
             }
         }
 
         stage('Docker Build & Push') {
-            agent any  // Jenkins 호스트에서 실행
             steps {
                 script {
                     def hashcode = sh(
@@ -66,18 +61,15 @@ pipeline {
                         def appImage = docker.build("${IMAGE_REGISTRY}/${IMAGE_NAME}:${FINAL_IMAGE_TAG}", "--platform linux/amd64 .")
                         appImage.push()
                     }
-
                     env.FINAL_IMAGE_TAG = FINAL_IMAGE_TAG
                 }
             }
         }
 
         stage('Update deploy.yaml and Git Push') {
-            agent any  // Jenkins 호스트에서 실행
             steps {
                 script {
-                    def newImageLine = "          image: ${env.IMAGE_REGISTRY}/${env.IMAGE_NAME}:${env.FINAL_IMAGE_TAG}"
-                    def gitRepoPath = env.GIT_URL.replaceFirst(/^https?:\/\//, '')
+                    def newImageLine = "          image: ${IMAGE_REGISTRY}/${IMAGE_NAME}:${FINAL_IMAGE_TAG}"
 
                     sh """
                         sed -i 's|^[[:space:]]*image:.*\$|${newImageLine}|g' ./argocd-k8s/deploy.yaml
@@ -90,12 +82,12 @@ pipeline {
                         git add ./argocd-k8s/deploy.yaml || true
                     """
 
-                    withCredentials([usernamePassword(credentialsId: "${env.GIT_ID}", usernameVariable: 'GIT_PUSH_USER', passwordVariable: 'GIT_PUSH_PASSWORD')]) {
+                    withCredentials([usernamePassword(credentialsId: GIT_ID, usernameVariable: 'GIT_PUSH_USER', passwordVariable: 'GIT_PUSH_PASSWORD')]) {
                         sh """
                             if ! git diff --cached --quiet; then
-                                git commit -m "[AUTO] Update deploy.yaml with image ${env.FINAL_IMAGE_TAG}"
-                                git remote set-url origin https://${GIT_PUSH_USER}:${GIT_PUSH_PASSWORD}@${gitRepoPath}
-                                git push origin ${env.GIT_BRANCH}
+                                git commit -m "[AUTO] Update deploy.yaml with image ${FINAL_IMAGE_TAG}"
+                                git remote set-url origin https://${GIT_PUSH_USER}:${GIT_PUSH_PASSWORD}@${GIT_URL.replaceFirst(/^https?:\\/\\//, '')}
+                                git push origin ${GIT_BRANCH}
                             else
                                 echo "No changes to commit."
                             fi
