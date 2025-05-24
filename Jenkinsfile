@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:18'
-            args '-u root:root'
-        }
-    }
+    agent any  // 도커 컨테이너 대신 Jenkins 에이전트 노드에서 실행
 
     environment {
         GIT_URL = 'https://github.com/EunJung516/DevOps-Practice.git'
@@ -21,14 +16,9 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: GIT_BRANCH]],
-                    userRemoteConfigs: [[
-                        url: GIT_URL,
-                        credentialsId: GIT_ID
-                    ]]
-                ])
+                checkout([$class: 'GitSCM',
+                          branches: [[name: GIT_BRANCH]],
+                          userRemoteConfigs: [[url: GIT_URL, credentialsId: GIT_ID]]])
             }
         }
 
@@ -47,19 +37,15 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 script {
-                    def hashcode = sh(
-                        script: "date +%s%N | sha256sum | cut -c1-12",
-                        returnStdout: true
-                    ).trim()
-
+                    def hashcode = sh(script: "date +%s%N | sha256sum | cut -c1-12", returnStdout: true).trim()
                     def FINAL_IMAGE_TAG = "${IMAGE_TAG}-${BUILD_NUMBER}-${hashcode}"
                     echo "Final Image Tag: ${FINAL_IMAGE_TAG}"
+                    env.FINAL_IMAGE_TAG = FINAL_IMAGE_TAG
 
                     docker.withRegistry("https://${IMAGE_REGISTRY}", "${DOCKER_CREDENTIAL_ID}") {
                         def appImage = docker.build("${IMAGE_REGISTRY}/${IMAGE_NAME}:${FINAL_IMAGE_TAG}", "--platform linux/amd64 .")
                         appImage.push()
                     }
-                    env.FINAL_IMAGE_TAG = FINAL_IMAGE_TAG
                 }
             }
         }
