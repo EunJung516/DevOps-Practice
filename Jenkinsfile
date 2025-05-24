@@ -30,16 +30,21 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                // 만약 프론트엔드 코드가 루트가 아니라면 dir() 로 경로 지정
-                // 예) dir('frontend') { sh 'npm install' }
-                sh 'npm install'
+                script {
+                    docker.image('node:20-alpine').inside('-u root') {
+                        sh 'npm install --unsafe-perm'
+                    }
+                }
             }
         }
 
         stage('Build React App') {
             steps {
-                // 마찬가지로 경로 맞게 수정 필요
-                sh 'npm run build'
+                script {
+                    docker.image('node:20-alpine').inside('-u root') {
+                        sh 'npm run build'
+                    }
+                }
             }
         }
 
@@ -69,7 +74,7 @@ pipeline {
         stage('Update deploy.yaml and Git Push') {
             steps {
                 script {
-                    def newImageLine = "        image: ${env.IMAGE_REGISTRY}/${env.IMAGE_NAME}:${env.FINAL_IMAGE_TAG}"
+                    def newImageLine = "          image: ${env.IMAGE_REGISTRY}/${env.IMAGE_NAME}:${env.FINAL_IMAGE_TAG}"
                     def gitRepoPath = env.GIT_URL.replaceFirst(/^https?:\/\//, '')
 
                     sh """
